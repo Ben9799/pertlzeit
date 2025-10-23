@@ -399,7 +399,6 @@
 
   <button class="fab" onclick="app.startOcr()" title="Foto (OCR)">📷</button>
   <input type="file" id="ocrInputFile" accept="image/*,.heic" />
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
 
   <script>
     const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
@@ -768,82 +767,79 @@
       processImage(file) {
         if (!file) return;
 
-        alert('⏳ OCR feldolgozás indult...\n\nEz az első futásnál 30-60 másodpercig tarthat!\n(Utána gyorsabb lesz)');
-        
+        alert('⏳ Feldolgozás folyamatban...');
+
         const reader = new FileReader();
-        reader.onload = (e) => {
-          this.runTesseractOCR(e.target.result);
+        reader.onload = async (e) => {
+          await this.sendToCloudVision(e.target.result);
         };
         reader.readAsDataURL(file);
       },
 
-      async runTesseractOCR(imageData) {
+      async sendToCloudVision(dataUrl) {
         try {
-          if (!window.Tesseract) {
-            alert('⏳ Tesseract könyvtár betöltődik... Kérlek várj!');
-            setTimeout(() => this.runTesseractOCR(imageData), 2000);
+          const base64Image = dataUrl.split(',')[1];
+
+          const response = await fetch('https://vision.googleapis.com/v1/images:annotate?key=AIzaSyAHb9FXxHqNbHRZYzMvHYKjnTtqWXUoKVE', {
+            method: 'POST',
+            body: JSON.stringify({
+              requests: [{
+                image: { content: base64Image },
+                features: [{ type: 'TEXT_DETECTION', maxResults: 10 }]
+              }]
+            })
+          });
+
+          const result = await response.json();
+
+          if (result.error) {
+            alert('Hiba: ' + result.error.message);
             return;
           }
 
-          const { createWorker } = Tesseract;
-          const worker = await createWorker('deu', 1, {
-            corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@v5.0.0/tesseract-core.wasm.js',
-            langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@v4.40.0/4.40.0_best/',
-            cachePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@v4.40.0/4.40.0_best/'
-          });
+          if (!result.responses || !result.responses[0].textAnnotations) {
+            alert('Nem sikerült szöveget felismerni a képről');
+            return;
+          }
 
-          const result = await worker.recognize(imageData);
-          const text = result.data.text;
-
-          await worker.terminate();
-
-          this.parseTimeCardOCR(text);
+          const ocrText = result.responses[0].textAnnotations[0].description;
+          this.parseTimeCardOCR(ocrText);
 
         } catch (err) {
-          console.error('Tesseract hiba:', err);
-          alert('⚠️ OCR hiba: ' + (err.message || 'Ismeretlen hiba'));
-          console.log('💡 TIPP: Ez GitHub Pages-en működni fog! Ez csak itt (Claude artifacts) nem működik a biztonsági korlátozások miatt.');
+          console.error('Hiba:', err);
+          alert('Feldolgozási hiba: ' + err.message);
         }
       },
 
       parseTimeCardOCR(ocrText) {
         if (!ocrText || ocrText.trim().length < 5) {
-          alert('❌ Nem sikerült szöveget felismerni. Próbáld egy világosabb/tisztább képpel!');
+          alert('Nem sikerült szöveget felismerni');
           return;
         }
 
-        console.log('OCR szöveg:', ocrText);
-
         const lines = ocrText.split('\n').map(l => l.trim()).filter(l => l);
         const dayTimes = {};
-
-        const timePattern = /(\d{1,2})[:.:](\d{2})/g;
+        const timePattern = /(\d{1,2}):(\d{2})/g;
 
         let currentDay = null;
 
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-
+        for (const line of lines) {
           const dayMatch = line.match(/^(\d{1,2})\D/);
           if (dayMatch) {
             const day = parseInt(dayMatch[1], 10);
             if (day >= 1 && day <= 31) {
               currentDay = day;
-              if (!dayTimes[day]) {
-                dayTimes[day] = [];
-              }
+              if (!dayTimes[day]) dayTimes[day] = [];
             }
           }
 
           if (currentDay !== null) {
             let match;
             timePattern.lastIndex = 0;
-            
             while ((match = timePattern.exec(line)) !== null) {
               const hour = pad2(match[1]);
               const minute = match[2];
               const timeStr = `${hour}:${minute}`;
-              
               if (!dayTimes[currentDay].includes(timeStr)) {
                 dayTimes[currentDay].push(timeStr);
               }
@@ -856,21 +852,17 @@
           if (times.length >= 2) {
             for (let i = 0; i < Math.min(times.length - 1, 6); i += 2) {
               const periodIdx = Math.floor(i / 2) + 1;
-              if (times[i + 1]) {
-                this.updateEntry(parseInt(day), `start${periodIdx}`, times[i]);
-                this.updateEntry(parseInt(day), `end${periodIdx}`, times[i + 1]);
-                updated++;
-              }
+              this.updateEntry(parseInt(day), `start${periodIdx}`, times[i]);
+              this.updateEntry(parseInt(day), `end${periodIdx}`, times[i + 1]);
+              updated++;
             }
           }
         }
 
-        console.log('Felismert napok:', dayTimes);
-
         if (updated > 0) {
-          alert(`✅ Sikeres OCR!\n\n${updated} munkaperiódust importáltam az időkártyáról!\n\nEllenőrizd az adatokat az alábbiakban.`);
+          alert(`Kész!\n\n${updated} időpontot feldolgoztak.`);
         } else {
-          alert('⚠️ Nem sikerült időpontokat felismerni. Próbálkozz egy jobb minőségű képpel!');
+          alert('Nem sikerült időpontokat felismerni');
         }
       }
     };

@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Arbeitszeiterfassung - Standalone</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      min-height: 100vh; 
+      background: linear-gradient(to bottom right, #f0f9ff, #ffffff, #f0f9ff);
+    }
+
+    .header {
+      background: linear-gradient(to right, #2563eb, #1e40af);
+      color: white;
+      padding: 2rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    .header-content {
+      max-width: 80rem;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    .header p { color: #bfdbfe; font-size: 1.1rem; }
+
+    .container {
+      max-width: 80rem;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .control-panel {
+      background: white;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+      border: 2px solid #dbeafe;
+    }
+
+    .controls-top {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+      align-items: center;
+    }
+
+    select {
+      padding: 0.75rem 1rem;
+      border: 2px solid #93c5fd;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 0.75rem 1.25rem;
+      border: none;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-blue { background: #2563eb; color: white; }
+    .btn-blue:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+
+    .btn-amber { background: #d97706; color: white; }
+    .btn-amber:hover { background: #b45309; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3); }
+
+    .btn-green { background: #16a34a; color: white; }
+    .btn-green:hover { background: #15803d; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
+
+    .btn-red { background: #dc2626; color: white; }
+    .btn-red:hover { background: #b91c1c; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); }
+
+    .monthly-summary {
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 2px solid;
+    }
+
+    .monthly-summary.positive {
+      background: linear-gradient(to right, #f0fdf4, #dcfce7);
+      border-color: #86efac;
+    }
+
+    .monthly-summary.negative {
+      background: linear-gradient(to right, #fef2f2, #fee2e2);
+      border-color: #fca5a5;
+    }
+
+    .monthly-summary h2 {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #1f2937;
+    }
+
+    .monthly-summary .total {
+      font-size: 1.875rem;
+      font-weight: bold;
+    }
+
+    .monthly-summary.positive .total { color: #16a34a; }
+    .monthly-summary.negative .total { color: #dc2626; }
+
+    .days-list {
+      margin-top: 2rem;
+    }
+
+    .day-card {
+      margin-bottom: 0.75rem;
+      border: 2px solid;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+    }
+
+    .day-card.weekend {
+      background: linear-gradient(to right, #f9fafb, #f3f4f6);
+      border-color: #d1d5db;
+    }
+
+    .day-card.weekday {
+      background: linear-gradient(to right, #ffffff, #f0f9ff);
+      border-color: #bfdbfe;
+    }
+
+    .day-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .day-card.expanded {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+
+    .day-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .day-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .day-number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #1f2937;
+      text-align: center;
+      width: 3rem;
+    }
+
+    .day-name { font-size: 1.125rem; font-weight: 600; color: #374151; }
+    .day-date { font-size: 0.875rem; color: #6b7280; }
+
+    .day-stats {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .diff-badge {
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: bold;
+      border: 2px solid;
+    }
+
+    .diff-badge.positive {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #86efac;
+    }
+
+    .diff-badge.negative {
+      background: #fee2e2;
+      color: #991b1b;
+      border-color: #fca5a5;
+    }
+
+    .chevron {
+      font-size: 1.5rem;
+      color: #2563eb;
+      transition: transform 0.2s;
+    }
+
+    .day-card.expanded .chevron {
+      transform: rotate(180deg);
+    }
+
+    .day-details {
+      display: none;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 2px solid #e5e7eb;
+    }
+
+    .day-card.expanded .day-details {
+      display: block;
+    }
+
+    .time-inputs {
+      display: grid;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .time-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .time-row label {
+      font-weight: 600;
+      color: #374151;
+      min-width: 6rem;
+    }
+
+    .time-input {
+      width: 7rem;
+      padding: 0.5rem 1rem;
+      border: 2px solid #d1d5db;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    .time-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .arrow { font-size: 1.5rem; color: #9ca3af; }
+
+    .diff-display {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 2px solid;
+    }
+
+    .diff-display.positive {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+
+    .diff-display.negative {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+
+    .diff-display .label { font-weight: 600; color: #374151; }
+    .diff-display .value { font-size: 1.5rem; font-weight: bold; }
+    .diff-display.positive .value { color: #16a34a; }
+    .diff-display.negative .value { color: #dc2626; }
+
+    .instructions {
+      margin-top: 2rem;
+      background: linear-gradient(to right, #f0f9ff, #f0f4ff);
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+      border: 2px solid #bfdbfe;
+    }
+
+    .instructions h3 {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #1f2937;
+      margin-bottom: 1rem;
+    }
+
+    .instructions ul {
+      list-style: none;
+      space: 0.5rem;
+    }
+
+    .instructions li {
+      margin-bottom: 0.5rem;
+      color: #374151;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .fab {
+      position: fixed;
+      right: 1rem;
+      bottom: 1rem;
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 50%;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      transition: all 0.2s;
+      z-index: 999;
+    }
+
+    .fab:hover {
+      background: #4338ca;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+      transform: scale(1.1);
+    }
+
+    #ocrInputFile { display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-content">
+      <div>
+        <h1>Pertl Präzisionstechnik</h1>
+        <p>Arbeitszeiterfassung</p>
+      </div>
+      <div style="font-size: 3.5rem;">🕐</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="control-panel">
+      <div class="controls-top">
+        <select id="monthSelect"></select>
+        <select id="yearSelect"></select>
+        <div class="button-group">
+          <button class="btn-blue" onclick="app.exportData()">⬇️ Exportieren</button>
+          <button class="btn-amber" onclick="app.exportExcel()">📊 Excel</button>
+          <button class="btn-green" onclick="app.importData()">⬆️ Importieren</button>
+          <button class="btn-red" onclick="app.clearAllData()">🗑️ Löschen</button>
+          <button class="btn-blue" onclick="app.startOcr()">📷 Foto (OCR)</button>
+        </div>
+      </div>
+
+      <div class="monthly-summary" id="monthlySummary">
+        <h2>Monatsbilanz <span id="monthYearDisplay"></span>:</h2>
+        <div class="total" id="totalDisplay">+0h 0min</div>
+      </div>
+    </div>
+
+    <div class="days-list" id="daysList"></div>
+
+    <div class="instructions">
+      <h3>📋 Anleitung</h3>
+      <ul>
+        <li><span style="color: #2563eb; font-weight: bold;">•</span> Klicken Sie auf einen Tag, um die Eingabefelder zu öffnen</li>
+        <li><span style="color: #2563eb; font-weight: bold;">•</span> Geben Sie Zeiten flexibel ein: z.B. 7 → 07:00, 730 → 07:30, 7.5 → 07:30</li>
+        <li><span style="color: #2563eb; font-weight: bold;">•</span> Bis zu 3 Zeiträume pro Tag</li>
+        <li><span style="color: #2563eb; font-weight: bold;">•</span> Sollzeit: 8 Stunden (480 Minuten) pro Tag</li>
+        <li><span style="color: #16a34a; font-weight: bold;">•</span> <strong style="color: #16a34a;">Grün</strong> = Überstunden (Plus)</li>
+        <li><span style="color: #dc2626; font-weight: bold;">•</span> <strong style="color: #dc2626;">Rot</strong> = Minusstunden (Minus)</li>
+        <li><span style="color: #4f46e5; font-weight: bold;">•</span> <strong style="color: #4f46e5;">📷 Foto (OCR)</strong> = Monatslista fotoját beolvasni és az időket automatikusan importálni</li>
+      </ul>
+    </div>
+  </div>
+
+  <button class="fab" onclick="app.startOcr()" title="Foto (OCR)">📷</button>
+  <input type="file" id="ocrInputFile" accept="image/*,.heic" />
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
+
+  <script>
+    const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    const dayNames = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+    const dayNamesShort = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+
+    function getDaysInMonth(m, y) {
+      return new Date(y, m + 1, 0).getDate();
+    }
+
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    function parseFlexibleTime(str) {
+      if (!str) return null;
+      let s = String(str).trim().replace(',', '.');
+      if (!s) return null;
+      
+      if (/^\d{1,4}$/.test(s)) {
+        if (s.length <= 2) {
+          const hh = parseInt(s, 10);
+          if (hh >= 0 && hh < 24) return hh * 60;
+          return null;
+        }
+        if (s.length === 3) {
+          const hh = parseInt(s.slice(0, 1), 10);
+          const mm = parseInt(s.slice(1), 10);
+          if (hh >= 0 && hh < 24 && mm >= 0 && mm < 60) return hh * 60 + mm;
+          return null;
+        }
+        const hh = parseInt(s.slice(0, 2), 10);
+        const mm = parseInt(s.slice(2), 10);
+        if (hh >= 0 && hh < 24 && mm >= 0 && mm < 60) return hh * 60 + mm;
+        return null;
+      }
+      
+      if (/^\d{1,2}\.\d+$/.test(s)) {
+        const f = parseFloat(s);
+        if (!isNaN(f)) return Math.round(f * 60);
+        return null;
+      }
+      
+      const m = s.match(/^(\d{1,2})[:.](\d{1,2})$/);
+      if (m) {
+        const hh = parseInt(m[1], 10);
+        const mm = parseInt(m[2], 10);
+        if (hh >= 0 && hh < 24 && mm >= 0 && mm < 60) return hh * 60 + mm;
+        return null;
+      }
+      
+      return null;
+    }
+
+    function minutesToHHMM(mins) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${pad2(h)}:${pad2(m)}`;
+    }
+
+    function formatTimeDifference(totalMinutes) {
+      const sign = totalMinutes < 0 ? '-' : '+';
+      const m = Math.abs(totalMinutes);
+      return {
+        sign,
+        hours: Math.floor(m / 60),
+        minutes: m % 60,
+        text: `${sign}${Math.floor(m / 60)}h ${m % 60}min`
+      };
+    }
+
+    const app = {
+      selectedMonth: new Date().getMonth(),
+      selectedYear: new Date().getFullYear(),
+      workEntries: {},
+      expandedDay: null,
+
+      init() {
+        this.loadData();
+        this.setupSelects();
+        this.render();
+      },
+
+      loadData() {
+        const saved = localStorage.getItem('arbeitszeitData');
+        this.workEntries = saved ? JSON.parse(saved) : {};
+      },
+
+      saveData() {
+        localStorage.setItem('arbeitszeitData', JSON.stringify(this.workEntries));
+      },
+
+      setupSelects() {
+        const monthSelect = document.getElementById('monthSelect');
+        const yearSelect = document.getElementById('yearSelect');
+
+        monthNames.forEach((name, idx) => {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.textContent = name;
+          monthSelect.appendChild(opt);
+        });
+        monthSelect.value = this.selectedMonth;
+        monthSelect.onchange = (e) => {
+          this.selectedMonth = parseInt(e.target.value);
+          this.render();
+        };
+
+        for (let y = 2023; y <= 2026; y++) {
+          const opt = document.createElement('option');
+          opt.value = y;
+          opt.textContent = y;
+          yearSelect.appendChild(opt);
+        }
+        yearSelect.value = this.selectedYear;
+        yearSelect.onchange = (e) => {
+          this.selectedYear = parseInt(e.target.value);
+          this.render();
+        };
+      },
+
+      getEntry(day) {
+        const key = `${this.selectedYear}-${this.selectedMonth}-${day}`;
+        return this.workEntries[key] || {};
+      },
+
+      updateEntry(day, field, value) {
+        const key = `${this.selectedYear}-${this.selectedMonth}-${day}`;
+        if (!this.workEntries[key]) this.workEntries[key] = {};
+        this.workEntries[key][field] = value;
+        this.saveData();
+        this.render();
+      },
+
+      calculateDifference(entry) {
+        const toMin = v => (v ? parseFlexibleTime(v) : null);
+        const start1 = toMin(entry.start1);
+        const end1 = toMin(entry.end1);
+        if (start1 == null || end1 == null) return 0;
+        let total = Math.max(0, end1 - start1);
+        const start2 = toMin(entry.start2);
+        const end2 = toMin(entry.end2);
+        if (start2 != null && end2 != null) total += Math.max(0, end2 - start2);
+        const start3 = toMin(entry.start3);
+        const end3 = toMin(entry.end3);
+        if (start3 != null && end3 != null) total += Math.max(0, end3 - start3);
+        return total - 480;
+      },
+
+      calculateMonthlyTotal() {
+        const daysInMonth = getDaysInMonth(this.selectedMonth, this.selectedYear);
+        let total = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+          total += this.calculateDifference(this.getEntry(d));
+        }
+        return total;
+      },
+
+      calculateWorkedMinutes(entry) {
+        const toMin = v => (v ? parseFlexibleTime(v) : null);
+        const s1 = toMin(entry.start1);
+        const e1 = toMin(entry.end1);
+        const s2 = toMin(entry.start2);
+        const e2 = toMin(entry.end2);
+        const s3 = toMin(entry.start3);
+        const e3 = toMin(entry.end3);
+        let total = 0;
+        if (s1 != null && e1 != null) total += Math.max(0, e1 - s1);
+        if (s2 != null && e2 != null) total += Math.max(0, e2 - s2);
+        if (s3 != null && e3 != null) total += Math.max(0, e3 - s3);
+        return total;
+      },
+
+      normalizeTimeField(day, field, value) {
+        const mins = parseFlexibleTime(value);
+        const normalized = mins == null ? '' : minutesToHHMM(mins);
+        this.updateEntry(day, field, normalized);
+      },
+
+      render() {
+        this.renderDays();
+        this.renderMonthlySummary();
+        document.getElementById('monthYearDisplay').textContent = `${monthNames[this.selectedMonth]} ${this.selectedYear}`;
+      },
+
+      renderMonthlySummary() {
+        const total = this.calculateMonthlyTotal();
+        const diff = formatTimeDifference(total);
+        const summary = document.getElementById('monthlySummary');
+        summary.className = `monthly-summary ${total >= 0 ? 'positive' : 'negative'}`;
+        document.getElementById('totalDisplay').textContent = diff.text;
+      },
+
+      renderDays() {
+        const daysInMonth = getDaysInMonth(this.selectedMonth, this.selectedYear);
+        const list = document.getElementById('daysList');
+        list.innerHTML = '';
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const entry = this.getEntry(day);
+          const diff = this.calculateDifference(entry);
+          const diffFmt = formatTimeDifference(diff);
+          const hasEntry = entry.start1 && entry.end1;
+          const date = new Date(this.selectedYear, this.selectedMonth, day);
+          const dow = date.getDay();
+          const isWeekend = dow === 0 || dow === 6;
+
+          const card = document.createElement('div');
+          card.className = `day-card ${isWeekend ? 'weekend' : 'weekday'} ${this.expandedDay === day ? 'expanded' : ''}`;
+          card.id = `day-${day}`;
+
+          let html = `
+            <div class="day-header">
+              <div class="day-info">
+                <div class="day-number">${day}</div>
+                <div>
+                  <div class="day-name">${dayNames[dow]}</div>
+                  <div class="day-date">${day}. ${monthNames[this.selectedMonth]} ${this.selectedYear}</div>
+                </div>
+              </div>
+              <div class="day-stats">
+                ${hasEntry ? `<div class="diff-badge ${diff >= 0 ? 'positive' : 'negative'}">${diffFmt.text}</div>` : ''}
+                <div class="chevron">${this.expandedDay === day ? '▲' : '▼'}</div>
+              </div>
+            </div>
+          `;
+
+          if (this.expandedDay === day) {
+            html += `<div class="day-details">`;
+            html += `<div class="time-inputs">`;
+            for (let idx = 1; idx <= 3; idx++) {
+              html += `
+                <div class="time-row" onclick="event.stopPropagation()">
+                  <label>${idx}. Zeitraum:</label>
+                  <input class="time-input" type="text" placeholder="${idx === 1 ? '07:00' : 'Start'}" 
+                    value="${entry[`start${idx}`] || ''}"
+                    onchange="app.normalizeTimeField(${day}, 'start${idx}', this.value)"
+                    onblur="app.normalizeTimeField(${day}, 'start${idx}', this.value)"
+                    onclick="event.stopPropagation()">
+                  <span class="arrow">→</span>
+                  <input class="time-input" type="text" placeholder="${idx === 1 ? '12:00' : 'Ende'}" 
+                    value="${entry[`end${idx}`] || ''}"
+                    onchange="app.normalizeTimeField(${day}, 'end${idx}', this.value)"
+                    onblur="app.normalizeTimeField(${day}, 'end${idx}', this.value)"
+                    onclick="event.stopPropagation()">
+                </div>
+              `;
+            }
+            html += `</div>`;
+            if (hasEntry) {
+              html += `
+                <div class="diff-display ${diff >= 0 ? 'positive' : 'negative'}">
+                  <span class="label">Differenz zu 8 Stunden:</span>
+                  <span class="value">${diffFmt.text}</span>
+                </div>
+              `;
+            }
+            html += `</div>`;
+          }
+
+          card.innerHTML = html;
+          card.onclick = () => {
+            this.expandedDay = this.expandedDay === day ? null : day;
+            this.render();
+          };
+
+          list.appendChild(card);
+        }
+      },
+
+      exportData() {
+        const dataStr = JSON.stringify(this.workEntries, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `arbeitszeit_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+      },
+
+      exportExcel() {
+        try {
+          const daysInMonth = getDaysInMonth(this.selectedMonth, this.selectedYear);
+          const rows = [];
+          rows.push(['Dátum', 'Nap', 'Start1', 'End1', 'Start2', 'End2', 'Start3', 'End3', 'Ledolgozott', 'Plusz/Mínusz']);
+          let totalWorked = 0;
+          for (let d = 1; d <= daysInMonth; d++) {
+            const entry = this.getEntry(d);
+            const worked = this.calculateWorkedMinutes(entry);
+            const diff = this.calculateDifference(entry);
+            totalWorked += worked;
+            const date = new Date(this.selectedYear, this.selectedMonth, d);
+            const dayName = dayNamesShort[date.getDay()];
+            const dateStr = `${this.selectedYear}-${pad2(this.selectedMonth + 1)}-${pad2(d)}`;
+            const diffFmt = formatTimeDifference(diff);
+            rows.push([
+              dateStr, dayName,
+              entry.start1 || '', entry.end1 || '',
+              entry.start2 || '', entry.end2 || '',
+              entry.start3 || '', entry.end3 || '',
+              minutesToHHMM(worked),
+              diffFmt.text
+            ]);
+          }
+          const monthlyDiff = this.calculateMonthlyTotal();
+          const monthlyFmt = formatTimeDifference(monthlyDiff);
+          rows.push([]);
+          rows.push(['Összesen ledolgozott idő', '', '', '', '', '', '', '', minutesToHHMM(totalWorked), '']);
+          rows.push(['Plusz/Mínusz összesen', '', '', '', '', '', '', '', '', monthlyFmt.text]);
+
+          let csv = '';
+          rows.forEach(row => {
+            csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+          });
+
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `arbeitszeit_${this.selectedYear}-${pad2(this.selectedMonth + 1)}.csv`;
+          a.click();
+        } catch (e) {
+          alert('Hiba történt az Excel export közben.');
+        }
+      },
+
+      importData() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            try {
+              const imported = JSON.parse(ev.target.result);
+              this.workEntries = imported;
+              this.saveData();
+              this.render();
+              alert('Daten erfolgreich importiert!');
+            } catch (err) {
+              alert('Fehler beim Importieren der Daten!');
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      },
+
+      clearAllData() {
+        if (confirm('Möchten Sie wirklich alle Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+          this.workEntries = {};
+          this.saveData();
+          this.render();
+          alert('Alle Daten wurden gelöscht!');
+        }
+      },
+
+      startOcr() {
+        const input = document.getElementById('ocrInputFile');
+        input.onchange = (e) => this.processImage(e.target.files[0]);
+        input.click();
+      },
+
+      processImage(file) {
+        if (!file) return;
+
+        alert('⏳ OCR feldolgozás indult...\n\nEz az első futásnál 30-60 másodpercig tarthat!\n(Utána gyorsabb lesz)');
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          this.runTesseractOCR(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      },
+
+      async runTesseractOCR(imageData) {
+        try {
+          if (!window.Tesseract) {
+            alert('⏳ Tesseract könyvtár betöltődik... Kérlek várj!');
+            setTimeout(() => this.runTesseractOCR(imageData), 2000);
+            return;
+          }
+
+          const { createWorker } = Tesseract;
+          const worker = await createWorker('deu', 1, {
+            corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@v5.0.0/tesseract-core.wasm.js',
+            langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@v4.40.0/4.40.0_best/',
+            cachePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@v4.40.0/4.40.0_best/'
+          });
+
+          const result = await worker.recognize(imageData);
+          const text = result.data.text;
+
+          await worker.terminate();
+
+          this.parseTimeCardOCR(text);
+
+        } catch (err) {
+          console.error('Tesseract hiba:', err);
+          alert('⚠️ OCR hiba: ' + (err.message || 'Ismeretlen hiba'));
+          console.log('💡 TIPP: Ez GitHub Pages-en működni fog! Ez csak itt (Claude artifacts) nem működik a biztonsági korlátozások miatt.');
+        }
+      },
+
+      parseTimeCardOCR(ocrText) {
+        if (!ocrText || ocrText.trim().length < 5) {
+          alert('❌ Nem sikerült szöveget felismerni. Próbáld egy világosabb/tisztább képpel!');
+          return;
+        }
+
+        console.log('OCR szöveg:', ocrText);
+
+        const lines = ocrText.split('\n').map(l => l.trim()).filter(l => l);
+        const dayTimes = {};
+
+        const timePattern = /(\d{1,2})[:.:](\d{2})/g;
+
+        let currentDay = null;
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+
+          const dayMatch = line.match(/^(\d{1,2})\D/);
+          if (dayMatch) {
+            const day = parseInt(dayMatch[1], 10);
+            if (day >= 1 && day <= 31) {
+              currentDay = day;
+              if (!dayTimes[day]) {
+                dayTimes[day] = [];
+              }
+            }
+          }
+
+          if (currentDay !== null) {
+            let match;
+            timePattern.lastIndex = 0;
+            
+            while ((match = timePattern.exec(line)) !== null) {
+              const hour = pad2(match[1]);
+              const minute = match[2];
+              const timeStr = `${hour}:${minute}`;
+              
+              if (!dayTimes[currentDay].includes(timeStr)) {
+                dayTimes[currentDay].push(timeStr);
+              }
+            }
+          }
+        }
+
+        let updated = 0;
+        for (const [day, times] of Object.entries(dayTimes)) {
+          if (times.length >= 2) {
+            for (let i = 0; i < Math.min(times.length - 1, 6); i += 2) {
+              const periodIdx = Math.floor(i / 2) + 1;
+              if (times[i + 1]) {
+                this.updateEntry(parseInt(day), `start${periodIdx}`, times[i]);
+                this.updateEntry(parseInt(day), `end${periodIdx}`, times[i + 1]);
+                updated++;
+              }
+            }
+          }
+        }
+
+        console.log('Felismert napok:', dayTimes);
+
+        if (updated > 0) {
+          alert(`✅ Sikeres OCR!\n\n${updated} munkaperiódust importáltam az időkártyáról!\n\nEllenőrizd az adatokat az alábbiakban.`);
+        } else {
+          alert('⚠️ Nem sikerült időpontokat felismerni. Próbálkozz egy jobb minőségű képpel!');
+        }
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      app.init();
+      
+      // Összeomlási mentés
+      const today = new Date();
+      if (today.getMonth() === app.selectedMonth && today.getFullYear() === app.selectedYear) {
+        app.expandedDay = today.getDate();
+        app.render();
+        setTimeout(() => {
+          const el = document.getElementById(`day-${today.getDate()}`);
+          if (el) el.scrollIntoView({ block: 'center' });
+        }, 100);
+      }
+    });
+  </script>
+</body>
+</html>
